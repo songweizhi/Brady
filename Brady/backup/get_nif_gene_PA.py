@@ -7,7 +7,7 @@ def sep_path_basename_ext(file_in):
     # separate path and file name
     f_path, file_name = os.path.split(file_in)
     if f_path == '':
-        f_path = '.'
+        f_path = '..'
 
     # separate file basename and extension
     f_base, f_ext = os.path.splitext(file_name)
