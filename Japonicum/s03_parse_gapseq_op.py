@@ -28,6 +28,19 @@ def rm_single_value_cols(df_in):
     return df_out
 
 
+def filter_col(df_in, min_value, min_value_min_num):
+
+    df_in_copy = df_in.copy(deep=True)
+
+    for col in df_in_copy.columns:
+        count = (df_in_copy[col] >= min_value).sum()
+        if count < min_value_min_num:
+            print(count)
+            df_in_copy.drop(col, axis=1, inplace=True)
+
+    return df_in_copy
+
+
 ########################################################################################################################
 
 '''
@@ -44,17 +57,22 @@ terpenoid	Terpenoid-Biosynthesis
 degradation	Degradation
 '''
 
+
 # file in
-wd                                      = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc'
-pathway_key                             = 'carbo-deg'  # amino, nucl, cofactor, carbo, polyamine
-pathways_tbl_dir                        = '%s/Pathways_%s'                                          % (wd, pathway_key)
-file_ext                                = 'tbl'
-absent_as_minus_one                     = True
+wd                                  = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc'
+pathway_key                         = 'degradation'  # amino, nucl, cofactor, carbo, polyamine
+pathways_tbl_dir                    = '%s/Pathways_%s'                                              % (wd, pathway_key)
+file_ext                            = 'tbl'
+absent_as_minus_one                 = True
+min_value                           = 1
+min_value_min_num                   = 100
 
 # file out
-op_df                                   = '%s/Pathways_PA_%s.txt'                                   % (wd, pathway_key)
-op_df_without_single_value_cols         = '%s/Pathways_PA_%s_without_single_value_cols.txt'         % (wd, pathway_key)
-op_df_without_single_value_cols_itol    = '%s/Pathways_PA_%s_without_single_value_cols_iTOL.txt'    % (wd, pathway_key)
+op_df                               = '%s/Pathways_PA_%s.txt'                                       % (wd, pathway_key)
+op_df_no_boring_cols                = '%s/Pathways_PA_%s_no_single_value_cols.txt'                  % (wd, pathway_key)
+op_df_no_boring_cols_itol           = '%s/Pathways_PA_%s_no_single_value_cols_iTOL.txt'             % (wd, pathway_key)
+op_df_no_boring_cols_filtered       = '%s/Pathways_PA_%s_no_single_value_cols_min%s_num%s.txt'      % (wd, pathway_key, min_value, min_value_min_num)
+op_df_no_boring_cols_filtered_itol  = '%s/Pathways_PA_%s_no_single_value_cols_min%s_num%s_iTOL.txt' % (wd, pathway_key, min_value, min_value_min_num)
 
 ########################################################################################################################
 
@@ -99,9 +117,13 @@ op_df_handle.close()
 # remove single value columns
 df = pd.read_csv(op_df, sep='\t', header=0, index_col=0)
 df_without_single_value_cols = rm_single_value_cols(df)
-df_without_single_value_cols.to_csv(op_df_without_single_value_cols, sep='\t')
+df_without_single_value_cols.to_csv(op_df_no_boring_cols, sep='\t')
+df_without_single_value_cols_filtered = filter_col(df_without_single_value_cols, min_value, min_value_min_num)
+df_without_single_value_cols_filtered.to_csv(op_df_no_boring_cols_filtered, sep='\t')
 
 # iTOL
-itol_cmd = 'BioSAK iTOL -Binary -lm %s -lt %s -out %s' % (op_df_without_single_value_cols, pathway_key, op_df_without_single_value_cols_itol)
+itol_cmd          = 'BioSAK iTOL -Binary -lm %s -lt %s -out %s' % (op_df_no_boring_cols, pathway_key, op_df_no_boring_cols_itol)
+itol_cmd_filtered = 'BioSAK iTOL -Binary -lm %s -lt %s -out %s' % (op_df_no_boring_cols_filtered, pathway_key, op_df_no_boring_cols_filtered_itol)
 os.system(itol_cmd)
+os.system(itol_cmd_filtered)
 
