@@ -59,18 +59,28 @@ degradation	Degradation
 
 # file in
 wd                                  = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc'
+pwy_cate_color_txt                  = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc/pwy_cate_color.txt'
 key_list                            = ['amino', 'carbo', 'carbo-deg', 'cofactor', 'degradation', 'energy', 'fatty', 'nucl', 'polyamine', 'terpenoid']
 file_ext                            = 'tbl'
 absent_as_minus_one                 = True
 min_value                           = 1
 min_value_min_num                   = 10
 
+########################################################################################################################
+
+# read in color
+pwy_cate_color_dict = dict()
+if os.path.isfile(pwy_cate_color_txt) is True:
+    for each_pwy_cate in open(pwy_cate_color_txt):
+        each_pwy_cate_split = each_pwy_cate.strip().split('\t')
+        pwy_cate_color_dict[each_pwy_cate_split[0]] = each_pwy_cate_split[1]
 
 for pathway_key in key_list:
 
     print('Processing %s' % pathway_key)
 
-    #pathway_key                         = 'degradation'  # amino, nucl, cofactor, carbo, polyamine
+    current_color                       = pwy_cate_color_dict.get(pathway_key, 'lightblue')
+    #pathway_key                        = 'degradation'  # amino, nucl, cofactor, carbo, polyamine
     pathways_tbl_dir                    = '%s/Pathways_%s'                                              % (wd, pathway_key)
 
     # file out
@@ -80,7 +90,6 @@ for pathway_key in key_list:
     op_df_no_boring_cols_filtered       = '%s/Pathways_PA_%s_no_single_value_cols_min%s_num%s.txt'      % (wd, pathway_key, min_value, min_value_min_num)
     op_df_no_boring_cols_filtered_itol  = '%s/Pathways_PA_%s_no_single_value_cols_min%s_num%s_iTOL.txt' % (wd, pathway_key, min_value, min_value_min_num)
 
-    ########################################################################################################################
 
     pathways_tbl_file_re   = '%s/*.%s' % (pathways_tbl_dir, file_ext)
     pathways_tbl_file_list = glob.glob(pathways_tbl_file_re)
@@ -128,8 +137,9 @@ for pathway_key in key_list:
     df_without_single_value_cols_filtered.to_csv(op_df_no_boring_cols_filtered, sep='\t')
 
     # iTOL
-    itol_cmd          = 'BioSAK iTOL -Binary -lm %s -lt %s -out %s' % (op_df_no_boring_cols, pathway_key, op_df_no_boring_cols_itol)
-    itol_cmd_filtered = 'BioSAK iTOL -Binary -lm %s -lt %s -out %s' % (op_df_no_boring_cols_filtered, pathway_key, op_df_no_boring_cols_filtered_itol)
-    os.system(itol_cmd)
+    #itol_cmd          = 'BioSAK iTOL -Binary -lm %s -lt %s -gc %s -out %s' % (op_df_no_boring_cols, pathway_key, current_color, op_df_no_boring_cols_itol)
+    itol_cmd_filtered = 'BioSAK iTOL -Binary -lm %s -lt %s -gc "%s" -out %s' % (op_df_no_boring_cols_filtered, pathway_key, current_color, op_df_no_boring_cols_filtered_itol)
+    #os.system(itol_cmd)
+    print(itol_cmd_filtered)
     os.system(itol_cmd_filtered)
 

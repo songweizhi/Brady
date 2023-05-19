@@ -39,3 +39,8 @@ for each_gnm in file_list:
 
 print(len(file_list))
 print(good_gnm_num)
+
+
+
+print(30000*0.8868)
+print(30000*0.9017)
