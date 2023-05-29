@@ -60,7 +60,7 @@ def subset_tree_by_treecluster(tree_file_in, TreeCluster_op_txt, tips_to_keep_tx
     subset_tree.write(outfile=tree_file_out)
 
 
-def rm_problematic_gnms(og_dir, og_ext, to_keep_gnm_set, og_dir_updated, force_mkdir):
+def rm_unwanted_gnms(og_dir, og_ext, to_keep_gnm_set, og_dir_updated, force_mkdir):
 
     if os.path.isdir(og_dir_updated) is True:
         if force_mkdir is False:
@@ -91,12 +91,12 @@ def rm_problematic_gnms(og_dir, og_ext, to_keep_gnm_set, og_dir_updated, force_m
 
 # file in
 full_tree_file              = '/Users/songweizhi/Desktop/subsample_gnm_wd/iqtree.treefile'
-tree_file_pb                = '/Users/songweizhi/Desktop/subsample_gnm_wd/iqtree_PB.treefile'
-tree_file_sym1              = '/Users/songweizhi/Desktop/subsample_gnm_wd/iqtree_sym1.treefile'
-nodes_to_keep_txt           = '/Users/songweizhi/Desktop/subsample_gnm_wd/nodes_to_keep.txt'
-TreeCluster_op_txt_pb       = '/Users/songweizhi/Desktop/subsample_gnm_wd/iqtree_PB_clusters_0.00001_by_len.txt'
-TreeCluster_op_txt_sym1     = '/Users/songweizhi/Desktop/subsample_gnm_wd/iqtree_sym1_clusters_0.0001_by_len.txt'
-og_dir                      = '/Users/songweizhi/Desktop/subsample_gnm_wd/pep-clean'
+tree_file_pb                = '/Users/songweizhi/Desktop/subsample_gnm_wd/iqtree_PB.treefile'                       # input tree to TreeCluster.py
+tree_file_sym1              = '/Users/songweizhi/Desktop/subsample_gnm_wd/iqtree_sym1.treefile'                     # input tree to TreeCluster.py
+TreeCluster_op_txt_pb       = '/Users/songweizhi/Desktop/subsample_gnm_wd/iqtree_PB_clusters_0.00001_by_len.txt'    # output from TreeCluster.py
+TreeCluster_op_txt_sym1     = '/Users/songweizhi/Desktop/subsample_gnm_wd/iqtree_sym1_clusters_0.0001_by_len.txt'   # output from TreeCluster.py
+nodes_to_keep_txt           = '/Users/songweizhi/Desktop/subsample_gnm_wd/nodes_to_keep.txt'                        # genomes want to keep
+og_dir                      = '/Users/songweizhi/Desktop/subsample_gnm_wd/pep-clean'                                # sequence files
 og_ext                      = 'fas'
 force_mkdir                 = True
 
@@ -142,5 +142,5 @@ for each_gnm in leaves_overall:
             gnm_set_to_keep.add(each_gnm)
 
 # rm_problematic_gnms from sequence
-rm_problematic_gnms(og_dir, og_ext, gnm_set_to_keep, og_dir_updated, force_mkdir)
+rm_unwanted_gnms(og_dir, og_ext, gnm_set_to_keep, og_dir_updated, force_mkdir)
 

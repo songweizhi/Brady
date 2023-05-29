@@ -54,19 +54,31 @@ fatty		Fatty-acid-biosynthesis
 energy		Energy-Metabolism
 terpenoid	Terpenoid-Biosynthesis
 degradation	Degradation
+
 '''
 
 
 # file in
 wd                                  = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc'
+gapseq_db_meta_pwy_tbl              = '/Users/songweizhi/DB/gapseq/meta_pwy.tbl'
 pwy_cate_color_txt                  = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc/pwy_cate_color.txt'
 key_list                            = ['amino', 'carbo', 'carbo-deg', 'cofactor', 'degradation', 'energy', 'fatty', 'nucl', 'polyamine', 'terpenoid']
 file_ext                            = 'tbl'
-absent_as_minus_one                 = True
+absent_as_minus_one                 = False
 min_value                           = 1
 min_value_min_num                   = 10
+gnm_to_ignore_list                  = ['GCA_024171065.1']
 
 ########################################################################################################################
+
+# read in gapseq's meta_pwy.tbl
+meta_pwy_id2name_dict = dict()
+for each_pwy in open(gapseq_db_meta_pwy_tbl):
+    if not each_pwy.startswith('id\t'):
+        each_pwy_split = each_pwy.strip().split('\t')
+        pwy_id = each_pwy_split[0]
+        pwy_name = each_pwy_split[1]
+        meta_pwy_id2name_dict[pwy_id.replace('|', '')] = pwy_name.replace(' ', '_').replace(',', '_')
 
 # read in color
 pwy_cate_color_dict = dict()
@@ -90,7 +102,6 @@ for pathway_key in key_list:
     op_df_no_boring_cols_filtered       = '%s/Pathways_PA_%s_no_single_value_cols_min%s_num%s.txt'      % (wd, pathway_key, min_value, min_value_min_num)
     op_df_no_boring_cols_filtered_itol  = '%s/Pathways_PA_%s_no_single_value_cols_min%s_num%s_iTOL.txt' % (wd, pathway_key, min_value, min_value_min_num)
 
-
     pathways_tbl_file_re   = '%s/*.%s' % (pathways_tbl_dir, file_ext)
     pathways_tbl_file_list = glob.glob(pathways_tbl_file_re)
 
@@ -111,22 +122,24 @@ for pathway_key in key_list:
 
     gnm_list_sorted = sorted(list(gnm_to_detected_pwy_dict.keys()))
     pwy_list_sorted = sorted([i for i in all_pwy_set])
+    pwy_list_sorted_with_desc = [('%s__%s' % (i.replace('|', ''), meta_pwy_id2name_dict[i.replace('|', '')])) for i in pwy_list_sorted]
 
     # write out prediction
     op_df_handle = open(op_df, 'w')
     op_df_handle.write('\t%s\n' % ('\t'.join(pwy_list_sorted)))
     for each_gnm in gnm_list_sorted:
-        detected_pwy_set = gnm_to_detected_pwy_dict[each_gnm]
-        detected_pwy_pa_list = []
-        for each_pwy in pwy_list_sorted:
-            if each_pwy in detected_pwy_set:
-                detected_pwy_pa_list.append('1')
-            else:
-                if absent_as_minus_one is True:
-                    detected_pwy_pa_list.append('-1')
+        if each_gnm not in gnm_to_ignore_list:
+            detected_pwy_set = gnm_to_detected_pwy_dict[each_gnm]
+            detected_pwy_pa_list = []
+            for each_pwy in pwy_list_sorted:
+                if each_pwy in detected_pwy_set:
+                    detected_pwy_pa_list.append('1')
                 else:
-                    detected_pwy_pa_list.append('0')
-        op_df_handle.write('%s\t%s\n' % (each_gnm, '\t'.join(detected_pwy_pa_list)))
+                    if absent_as_minus_one is True:
+                        detected_pwy_pa_list.append('-1')
+                    else:
+                        detected_pwy_pa_list.append('0')
+            op_df_handle.write('%s\t%s\n' % (each_gnm, '\t'.join(detected_pwy_pa_list)))
     op_df_handle.close()
 
     # remove single value columns
@@ -141,5 +154,5 @@ for pathway_key in key_list:
     itol_cmd_filtered = 'BioSAK iTOL -Binary -lm %s -lt %s -gc "%s" -out %s' % (op_df_no_boring_cols_filtered, pathway_key, current_color, op_df_no_boring_cols_filtered_itol)
     #os.system(itol_cmd)
     print(itol_cmd_filtered)
-    os.system(itol_cmd_filtered)
+    #os.system(itol_cmd_filtered)
 
