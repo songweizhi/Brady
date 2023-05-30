@@ -54,7 +54,9 @@ fatty		Fatty-acid-biosynthesis
 energy		Energy-Metabolism
 terpenoid	Terpenoid-Biosynthesis
 degradation	Degradation
+
 '''
+
 
 # file in
 wd                                  = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc'
@@ -66,11 +68,6 @@ absent_as_minus_one                 = False
 min_value                           = 1
 min_value_min_num                   = 10
 gnm_to_ignore_list                  = ['GCA_024171065.1']
-
-# file out
-op_df                               = '%s/Pathway_PA.txt'                                    % wd
-op_df_no_boring_cols                = '%s/Pathway_PA_no_single_value_cols.txt'               % wd
-op_df_no_boring_cols_filtered       = '%s/Pathway_PA_no_single_value_cols_min%s_num%s.txt'   % (wd, min_value, min_value_min_num)
 
 ########################################################################################################################
 
@@ -90,55 +87,71 @@ if os.path.isfile(pwy_cate_color_txt) is True:
         each_pwy_cate_split = each_pwy_cate.strip().split('\t')
         pwy_cate_color_dict[each_pwy_cate_split[0]] = each_pwy_cate_split[1]
 
-all_pwy_set = set()
-gnm_to_detected_pwy_dict = dict()
 for pathway_key in key_list:
 
-    pathways_tbl_dir       = '%s/Pathways_%s'   % (wd, pathway_key)
-    pathways_tbl_file_re   = '%s/*.%s'          % (pathways_tbl_dir, file_ext)
+    print('Processing %s' % pathway_key)
+
+    current_color                       = pwy_cate_color_dict.get(pathway_key, 'lightblue')
+    #pathway_key                        = 'degradation'  # amino, nucl, cofactor, carbo, polyamine
+    pathways_tbl_dir                    = '%s/Pathways_%s'                                              % (wd, pathway_key)
+
+    # file out
+    op_df                               = '%s/Pathways_PA_%s.txt'                                       % (wd, pathway_key)
+    op_df_no_boring_cols                = '%s/Pathways_PA_%s_no_single_value_cols.txt'                  % (wd, pathway_key)
+    op_df_no_boring_cols_itol           = '%s/Pathways_PA_%s_no_single_value_cols_iTOL.txt'             % (wd, pathway_key)
+    op_df_no_boring_cols_filtered       = '%s/Pathways_PA_%s_no_single_value_cols_min%s_num%s.txt'      % (wd, pathway_key, min_value, min_value_min_num)
+    op_df_no_boring_cols_filtered_itol  = '%s/Pathways_PA_%s_no_single_value_cols_min%s_num%s_iTOL.txt' % (wd, pathway_key, min_value, min_value_min_num)
+
+    pathways_tbl_file_re   = '%s/*.%s' % (pathways_tbl_dir, file_ext)
     pathways_tbl_file_list = glob.glob(pathways_tbl_file_re)
 
     # read in prediction
+    all_pwy_set = set()
+    gnm_to_detected_pwy_dict = dict()
     for pathways_tbl_file in pathways_tbl_file_list:
         f_path, f_base, f_ext = sep_path_basename_ext(pathways_tbl_file)
         gnm_id = f_base.split('-%s-' % pathway_key)[0]
-
-        if gnm_id not in gnm_to_detected_pwy_dict:
-            gnm_to_detected_pwy_dict[gnm_id] = set()
-
+        detected_pwy_set = set()
         for each_pwy in open(pathways_tbl_file):
             if (not each_pwy.startswith('#')) and (not each_pwy.startswith('ID')):
                 each_pwy_split = each_pwy.strip().split('\t')
-                pwy_id = each_pwy_split[0].replace('|', '')
-                pwy_id_with_cate = '%s__%s' % (pathway_key, pwy_id)
-                all_pwy_set.add(pwy_id_with_cate)
+                all_pwy_set.add(each_pwy_split[0])
                 if each_pwy_split[2] == 'true':
-                    gnm_to_detected_pwy_dict[gnm_id].add(pwy_id_with_cate)
+                    detected_pwy_set.add(each_pwy_split[0])
+        gnm_to_detected_pwy_dict[gnm_id] = detected_pwy_set
 
-gnm_list_sorted = sorted(list(gnm_to_detected_pwy_dict.keys()))
-pwy_list_sorted = sorted([i for i in all_pwy_set])
+    gnm_list_sorted = sorted(list(gnm_to_detected_pwy_dict.keys()))
+    pwy_list_sorted = sorted([i for i in all_pwy_set])
 
-# write out prediction
-op_df_handle = open(op_df, 'w')
-op_df_handle.write('\t%s\n' % ('\t'.join(pwy_list_sorted)))
-for each_gnm in gnm_list_sorted:
-    if each_gnm not in gnm_to_ignore_list:
-        detected_pwy_set = gnm_to_detected_pwy_dict[each_gnm]
-        detected_pwy_pa_list = []
-        for each_pwy in pwy_list_sorted:
-            if each_pwy in detected_pwy_set:
-                detected_pwy_pa_list.append('1')
-            else:
-                if absent_as_minus_one is True:
-                    detected_pwy_pa_list.append('-1')
+    # write out prediction
+    op_df_handle = open(op_df, 'w')
+    op_df_handle.write('\t%s\n' % ('\t'.join(pwy_list_sorted)))
+    for each_gnm in gnm_list_sorted:
+        if each_gnm not in gnm_to_ignore_list:
+            detected_pwy_set = gnm_to_detected_pwy_dict[each_gnm]
+            detected_pwy_pa_list = []
+            for each_pwy in pwy_list_sorted:
+                if each_pwy in detected_pwy_set:
+                    detected_pwy_pa_list.append('1')
                 else:
-                    detected_pwy_pa_list.append('0')
-        op_df_handle.write('%s\t%s\n' % (each_gnm, '\t'.join(detected_pwy_pa_list)))
-op_df_handle.close()
+                    if absent_as_minus_one is True:
+                        detected_pwy_pa_list.append('-1')
+                    else:
+                        detected_pwy_pa_list.append('0')
+            op_df_handle.write('%s\t%s\n' % (each_gnm, '\t'.join(detected_pwy_pa_list)))
+    op_df_handle.close()
 
-# remove single value columns
-df = pd.read_csv(op_df, sep='\t', header=0, index_col=0)
-df_without_single_value_cols = rm_single_value_cols(df)
-df_without_single_value_cols.to_csv(op_df_no_boring_cols, sep='\t')
-df_without_single_value_cols_filtered = filter_col(df_without_single_value_cols, min_value, min_value_min_num)
-df_without_single_value_cols_filtered.to_csv(op_df_no_boring_cols_filtered, sep='\t')
+    # remove single value columns
+    df = pd.read_csv(op_df, sep='\t', header=0, index_col=0)
+    df_without_single_value_cols = rm_single_value_cols(df)
+    df_without_single_value_cols.to_csv(op_df_no_boring_cols, sep='\t')
+    df_without_single_value_cols_filtered = filter_col(df_without_single_value_cols, min_value, min_value_min_num)
+    df_without_single_value_cols_filtered.to_csv(op_df_no_boring_cols_filtered, sep='\t')
+
+    # iTOL
+    #itol_cmd          = 'BioSAK iTOL -Binary -lm %s -lt %s -gc %s -out %s' % (op_df_no_boring_cols, pathway_key, current_color, op_df_no_boring_cols_itol)
+    #itol_cmd_filtered = 'BioSAK iTOL -Binary -lm %s -lt %s -gc "%s" -out %s' % (op_df_no_boring_cols_filtered, pathway_key, current_color, op_df_no_boring_cols_filtered_itol)
+    #os.system(itol_cmd)
+    #print(itol_cmd_filtered)
+    #os.system(itol_cmd_filtered)
+

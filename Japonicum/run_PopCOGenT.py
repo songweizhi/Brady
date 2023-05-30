@@ -30,37 +30,38 @@ import os
 #     else:
 #         print('%s\t%s' % (each_gnm, gnm_c_set))
 # gnm_to_cluster_txt_handle.close()
+
+
+'''
+cd /home-user/wzsong/Japonicum/PopCOGenT
+BioSAK iTOL -ColorStrip -lg PopCOGenT_MCs.txt -lt PopCOGenT_MC -o PopCOGenT_MCs_iTOL_Strip.txt
+BioSAK iTOL -ColorRange -lg PopCOGenT_MCs.txt -lt PopCOGenT_MC -o PopCOGenT_MCs_iTOL_Range.txt
+'''
+#
+# PopC_txt    = '/Users/songweizhi/Desktop/PopC.txt'
+# PopC_txt    = 'PopC.txt'
+# gnm_dir     = '/home-user/wzsong/Japonicum/data/genome'
+# gnm_ext     = 'genome'
+# copy_to_dir = '/home-user/wzsong/Japonicum/PopCOGenT/genome_sep'
 #
 #
-# # iTOL
-# itol_cmd = 'BioSAK iTOL -ColorStrip -lg %s -lt Cluster -out %s' % (gnm_to_cluster_txt, gnm_to_cluster_txt_itol)
-# itol_cmd = 'BioSAK iTOL -ColorStrip -lg %s -lt Cluster -out %s' % ('/Users/songweizhi/Desktop/PopC.txt', '/Users/songweizhi/Desktop/PopC_iTOL.txt')
-# os.system(itol_cmd)
-
-PopC_txt    = '/Users/songweizhi/Desktop/PopC.txt'
-PopC_txt    = 'PopC.txt'
-gnm_dir     = '/home-user/wzsong/Japonicum/data/genome'
-gnm_ext     = 'genome'
-copy_to_dir = '/home-user/wzsong/Japonicum/PopCOGenT/genome_sep'
-
-
-if os.path.isdir(copy_to_dir) is True:
-    os.system('rm -r %s' % copy_to_dir)
-os.system('mkdir %s' % copy_to_dir)
-
-for each_gnm in open(PopC_txt):
-    each_gnm_split = each_gnm.strip().split('\t')
-    gnm_id = each_gnm_split[0]
-    cluster_id = each_gnm_split[1]
-
-    copy_to_subdir = '%s/%s' % (copy_to_dir, cluster_id)
-    if os.path.isdir(copy_to_subdir) is False:
-        os.system('mkdir %s' % copy_to_subdir)
-
-    pwd_gnm_from = '%s/%s.%s' % (gnm_dir, gnm_id, gnm_ext)
-    pwd_gnm_to = '%s/%s.%s' % (copy_to_subdir, gnm_id, gnm_ext)
-
-    os.system('cp %s %s' % (pwd_gnm_from, pwd_gnm_to))
-
-
+# if os.path.isdir(copy_to_dir) is True:
+#     os.system('rm -r %s' % copy_to_dir)
+# os.system('mkdir %s' % copy_to_dir)
+#
+# for each_gnm in open(PopC_txt):
+#     each_gnm_split = each_gnm.strip().split('\t')
+#     gnm_id = each_gnm_split[0]
+#     cluster_id = each_gnm_split[1]
+#
+#     copy_to_subdir = '%s/%s' % (copy_to_dir, cluster_id)
+#     if os.path.isdir(copy_to_subdir) is False:
+#         os.system('mkdir %s' % copy_to_subdir)
+#
+#     pwd_gnm_from = '%s/%s.%s' % (gnm_dir, gnm_id, gnm_ext)
+#     pwd_gnm_to = '%s/%s.%s' % (copy_to_subdir, gnm_id, gnm_ext)
+#
+#     os.system('cp %s %s' % (pwd_gnm_from, pwd_gnm_to))
+#
+#
 
