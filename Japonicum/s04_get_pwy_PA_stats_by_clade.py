@@ -7,6 +7,18 @@ from scipy.stats import fisher_exact
 from statsmodels.stats.multitest import multipletests
 
 
+def rm_single_value_cols(df_in):
+
+    # Check if there is only one unique value in each column
+    unique_values = df_in.nunique()
+    same_value_cols = unique_values[unique_values == 1].index
+
+    # Drop columns with the same value
+    df_out = df_in.drop(same_value_cols, axis=1)
+
+    return df_out
+
+
 def subset_tree(tree_file_in, genomes_to_keep, tree_file_out):
     input_tree = Tree(tree_file_in)
     subset_tree = input_tree.copy()
@@ -127,10 +139,71 @@ def perform_fisher_exact_test(pa_table_txt, gnm_cate_txt, interested_gnm_txt):
     return p_value_dict
 
 
-def perform_differential_presence_analysis(pa_table_txt, gnm_cate_txt, interested_gnm_txt, p_value_cutoff, output_txt):
+def perform_binaryPGLMM_test(tree_file, pa_table_txt, gnm_cate_txt, interested_gnm_txt, PhyloBiAssoc_R):
 
-    # perform_fisher_exact_test
-    p_value_dict = perform_fisher_exact_test(pa_table_txt, gnm_cate_txt, interested_gnm_txt)
+    f_path, f_base, f_ext       = sep_path_basename_ext(interested_gnm_txt)
+    binaryPGLMM_input_txt_tmp   = '%s/binaryPGLMM_%s_input_tmp.txt'  % (f_path, f_base)
+    binaryPGLMM_input_txt       = '%s/binaryPGLMM_%s_input.txt'      % (f_path, f_base)
+    binaryPGLMM_output_txt      = '%s/binaryPGLMM_%s_output.txt'     % (f_path, f_base)
+
+    # read in interested_gnm
+    interested_gnm_set = set()
+    for each_gnm in open(interested_gnm_txt):
+
+        gnm_id = each_gnm.strip()
+        if '\t' in gnm_id:
+            gnm_id = gnm_id.split('\t')[0]
+        elif ' ' in gnm_id:
+            gnm_id = gnm_id.split(' ')[0]
+        elif ',' in gnm_id:
+            gnm_id = gnm_id.split(',')[0]
+        interested_gnm_set.add(gnm_id)
+
+    # read in gnm_cate_txt
+    gnm_cate_set = set()
+    gnm_to_cate_dict = dict()
+    for each_gnm in open(gnm_cate_txt):
+        each_gnm_split = each_gnm.strip().split('\t')
+        gnm_cate_set.add(each_gnm_split[1])
+        gnm_to_cate_dict[each_gnm_split[0]] = each_gnm_split[1]
+
+    binaryPGLMM_input_txt_handle = open(binaryPGLMM_input_txt_tmp, 'w')
+    for each_gnm in open(pa_table_txt):
+        each_gnm_split = each_gnm.strip().split('\t')
+        if each_gnm.startswith('\t'):
+            binaryPGLMM_input_txt_handle.write('ID\tcate\t%s\n' % '\t'.join(each_gnm_split))
+        gnm_id = each_gnm_split[0]
+        if gnm_id in interested_gnm_set:
+            gnm_cate = gnm_to_cate_dict[gnm_id]
+            binaryPGLMM_input_txt_handle.write('%s\t%s\t%s\n' % (gnm_id, gnm_cate, '\t'.join(each_gnm_split[1:])))
+    binaryPGLMM_input_txt_handle.close()
+
+    df = pd.read_csv(binaryPGLMM_input_txt_tmp, sep='\t', header=0, index_col=0)
+    df_without_single_value_cols = rm_single_value_cols(df)
+    df_without_single_value_cols.to_csv(binaryPGLMM_input_txt, sep='\t')
+    os.system('rm %s' % binaryPGLMM_input_txt_tmp)
+    binaryPGLMM_cmd = 'Rscript %s -t %s -d %s > %s' % (PhyloBiAssoc_R, tree_file, binaryPGLMM_input_txt, binaryPGLMM_output_txt)
+    os.system(binaryPGLMM_cmd)
+
+    p_value_dict = dict()
+    for each_test in open(binaryPGLMM_output_txt):
+        each_test_split = each_test.strip().split('\t')
+        pwy_id = each_test_split[0].replace('.', '-')
+        p_value = float(each_test_split[-1])
+        p_value_dict[pwy_id] = p_value
+
+    return p_value_dict
+
+
+def perform_differential_presence_analysis(test_to_perform, tree_file_subset, pa_table_txt, gnm_cate_txt, interested_gnm_txt, p_value_cutoff, output_txt, PhyloBiAssoc_R):
+
+    if test_to_perform == 'FisherExact':
+        p_value_dict = perform_fisher_exact_test(pa_table_txt, gnm_cate_txt, interested_gnm_txt)
+    elif test_to_perform == 'BinaryPGLMM':
+        p_value_dict = perform_binaryPGLMM_test(tree_file_subset, pa_table_txt, gnm_cate_txt, interested_gnm_txt, PhyloBiAssoc_R)
+    else:
+        print('Please specify either FisherExact or BinaryPGLMM, program exited!')
+        exit()
 
     # perform_Benjamini_H_correction
     adjust_p_value_dict = perform_Benjamini_H_correction(list(p_value_dict.values()))
@@ -149,16 +222,18 @@ def perform_differential_presence_analysis(pa_table_txt, gnm_cate_txt, intereste
 
 pwd_pathway_pa_txt      = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc/Pathway_PA.txt'
 gapseq_db_meta_pwy_tbl  = '/Users/songweizhi/DB/gapseq/meta_pwy.tbl'
-gnm_cate_txt            = '/Users/songweizhi/Desktop/Japonicum/differential_gene_presence_analysis_with_name/genome_cate_by_nod.txt'
+analysis_clades_txt     = '/Users/songweizhi/Desktop/Japonicum/Japo_analysis_clades.txt'
+tree_file               = '/Users/songweizhi/Desktop/Japonicum/Japonicum_121_OG_tree_LG.treefile'
+gnm_cate_txt            = '/Users/songweizhi/Desktop/Japonicum/genome_cate_by_nod.txt'
 pwy_cate_color_txt      = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc/pwy_cate_color.txt'
 p_value_cutoff          = 0.05
 add_pathway_name        = True
-analysis_clades_txt     = '/Users/songweizhi/Desktop/Japonicum/Japo_analysis_clades.txt'
-tree_file               = '/Users/songweizhi/Desktop/Japonicum/Japonicum_121_OG_tree_LG.treefile'
 gnm_to_ignore_list      = ['GCA_024171065.1']
+test_to_perform         = 'BinaryPGLMM' # FisherExact, BinaryPGLMM
+PhyloBiAssoc_R          = '/Users/songweizhi/PycharmProjects/BioSAK/BioSAK/PhyloBiAssoc.R'
 
 # op dir
-op_dir                  = '/Users/songweizhi/Desktop/Japonicum/differential_gene_presence_analysis_by_clade'
+op_dir                  = '/Users/songweizhi/Desktop/Japonicum/differential_presence_analysis_by_clade'
 pathway_color_txt       = '%s/pathway_color.txt' % op_dir
 
 ########################################################################################################################
@@ -212,7 +287,7 @@ for analysis_clade in analysis_clade_to_gnm_dict:
     pwd_pathway_pa_txt_diff_0as1_itol = '%s/%s_pathway_PA_diff_with_name_iTOL.txt'  % (op_dir, analysis_clade)
 
     # perform_differential_presence_analysis
-    perform_differential_presence_analysis(pwd_pathway_pa_txt, gnm_cate_txt, interested_gnm_txt, p_value_cutoff, pwd_analysis_result_txt)
+    perform_differential_presence_analysis(test_to_perform, tree_file_subset, pwd_pathway_pa_txt, gnm_cate_txt, interested_gnm_txt, p_value_cutoff, pwd_analysis_result_txt, PhyloBiAssoc_R)
 
     # get pathways with differential presence
     diff_pwy_id_set = set()
@@ -267,7 +342,6 @@ for analysis_clade in analysis_clade_to_gnm_dict:
                 pwd_pathway_color_txt_handle.write('%s\t%s\n' % (each_pwy, pwy_cate_color))
         pwd_pathway_color_txt_handle.close()
 
-
         # turn 0 to -1
         pwd_pathway_pa_txt_diff_0as1_handle = open(pwd_pathway_pa_txt_diff_0as1, 'w')
         for each_line in open(pwd_pathway_pa_txt_diff_with_name):
@@ -276,9 +350,10 @@ for analysis_clade in analysis_clade_to_gnm_dict:
 
         # iTOL
         itol_cmd = 'BioSAK iTOL -Binary -lm %s -lt Pathway -cc %s -o %s' % (pwd_pathway_pa_txt_diff_0as1, pwd_pathway_color_txt, pwd_pathway_pa_txt_diff_0as1_itol)
+        print(itol_cmd)
         os.system(itol_cmd)
 
         # remove tmp files
-        os.system('rm %s' % pwd_pathway_color_txt)
-        os.system('rm %s' % pwd_pathway_pa_txt_diff)
-        os.system('rm %s' % pwd_pathway_pa_txt_diff_0as1)
+        # os.system('rm %s' % pwd_pathway_color_txt)
+        # os.system('rm %s' % pwd_pathway_pa_txt_diff)
+        # os.system('rm %s' % pwd_pathway_pa_txt_diff_0as1)
