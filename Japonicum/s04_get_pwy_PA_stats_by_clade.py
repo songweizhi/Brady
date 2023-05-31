@@ -79,7 +79,7 @@ def perform_Benjamini_H_correction(p_values_list):
     return adjust_p_value_dict
 
 
-def perform_fisher_exact_test(pa_table_txt, gnm_cate_txt, interested_gnm_txt):
+def perform_fisher_exact_test(perform_stats, pa_table_txt, gnm_to_cate_dict, interested_gnm_txt):
 
     # read in interested_gnm
     interested_gnm_set = set()
@@ -94,15 +94,7 @@ def perform_fisher_exact_test(pa_table_txt, gnm_cate_txt, interested_gnm_txt):
             gnm_id = gnm_id.split(',')[0]
         interested_gnm_set.add(gnm_id)
 
-    # read in gnm_cate_txt
-    gnm_cate_set = set()
-    gnm_to_cate_dict = dict()
-    for each_gnm in open(gnm_cate_txt):
-        each_gnm_split = each_gnm.strip().split('\t')
-        gnm_cate_set.add(each_gnm_split[1])
-        gnm_to_cate_dict[each_gnm_split[0]] = each_gnm_split[1]
-
-    gnm_cate_list_sorted = sorted([i for i in gnm_cate_set])
+    gnm_cate_list_sorted = sorted(list(gnm_to_cate_dict.keys()))
 
     df_in = pd.read_csv(pa_table_txt, sep='\t', header=0, index_col=0)
 
@@ -139,7 +131,7 @@ def perform_fisher_exact_test(pa_table_txt, gnm_cate_txt, interested_gnm_txt):
     return p_value_dict
 
 
-def perform_binaryPGLMM_test(tree_file, pa_table_txt, gnm_cate_txt, interested_gnm_txt, PhyloBiAssoc_R):
+def perform_binaryPGLMM_test(perform_stats, tree_file, pa_table_txt, gnm_to_cate_dict, interested_gnm_txt, PhyloBiAssoc_R):
 
     f_path, f_base, f_ext       = sep_path_basename_ext(interested_gnm_txt)
     binaryPGLMM_input_txt_tmp   = '%s/binaryPGLMM_%s_input_tmp.txt'  % (f_path, f_base)
@@ -159,31 +151,24 @@ def perform_binaryPGLMM_test(tree_file, pa_table_txt, gnm_cate_txt, interested_g
             gnm_id = gnm_id.split(',')[0]
         interested_gnm_set.add(gnm_id)
 
-    # read in gnm_cate_txt
-    gnm_cate_set = set()
-    gnm_to_cate_dict = dict()
-    for each_gnm in open(gnm_cate_txt):
-        each_gnm_split = each_gnm.strip().split('\t')
-        gnm_cate_set.add(each_gnm_split[1])
-        gnm_to_cate_dict[each_gnm_split[0]] = each_gnm_split[1]
+    if perform_stats is True:
+        binaryPGLMM_input_txt_handle = open(binaryPGLMM_input_txt_tmp, 'w')
+        for each_gnm in open(pa_table_txt):
+            each_gnm_split = each_gnm.strip().split('\t')
+            if each_gnm.startswith('\t'):
+                binaryPGLMM_input_txt_handle.write('ID\tcate\t%s\n' % '\t'.join(each_gnm_split))
+            gnm_id = each_gnm_split[0]
+            if gnm_id in interested_gnm_set:
+                gnm_cate = gnm_to_cate_dict[gnm_id]
+                binaryPGLMM_input_txt_handle.write('%s\t%s\t%s\n' % (gnm_id, gnm_cate, '\t'.join(each_gnm_split[1:])))
+        binaryPGLMM_input_txt_handle.close()
 
-    binaryPGLMM_input_txt_handle = open(binaryPGLMM_input_txt_tmp, 'w')
-    for each_gnm in open(pa_table_txt):
-        each_gnm_split = each_gnm.strip().split('\t')
-        if each_gnm.startswith('\t'):
-            binaryPGLMM_input_txt_handle.write('ID\tcate\t%s\n' % '\t'.join(each_gnm_split))
-        gnm_id = each_gnm_split[0]
-        if gnm_id in interested_gnm_set:
-            gnm_cate = gnm_to_cate_dict[gnm_id]
-            binaryPGLMM_input_txt_handle.write('%s\t%s\t%s\n' % (gnm_id, gnm_cate, '\t'.join(each_gnm_split[1:])))
-    binaryPGLMM_input_txt_handle.close()
-
-    df = pd.read_csv(binaryPGLMM_input_txt_tmp, sep='\t', header=0, index_col=0)
-    df_without_single_value_cols = rm_single_value_cols(df)
-    df_without_single_value_cols.to_csv(binaryPGLMM_input_txt, sep='\t')
-    os.system('rm %s' % binaryPGLMM_input_txt_tmp)
-    binaryPGLMM_cmd = 'Rscript %s -t %s -d %s > %s' % (PhyloBiAssoc_R, tree_file, binaryPGLMM_input_txt, binaryPGLMM_output_txt)
-    os.system(binaryPGLMM_cmd)
+        df = pd.read_csv(binaryPGLMM_input_txt_tmp, sep='\t', header=0, index_col=0)
+        df_without_single_value_cols = rm_single_value_cols(df)
+        df_without_single_value_cols.to_csv(binaryPGLMM_input_txt, sep='\t')
+        os.system('rm %s' % binaryPGLMM_input_txt_tmp)
+        binaryPGLMM_cmd = 'Rscript %s -t %s -d %s > %s' % (PhyloBiAssoc_R, tree_file, binaryPGLMM_input_txt, binaryPGLMM_output_txt)
+        os.system(binaryPGLMM_cmd)
 
     p_value_dict = dict()
     for each_test in open(binaryPGLMM_output_txt):
@@ -195,12 +180,12 @@ def perform_binaryPGLMM_test(tree_file, pa_table_txt, gnm_cate_txt, interested_g
     return p_value_dict
 
 
-def perform_differential_presence_analysis(test_to_perform, tree_file_subset, pa_table_txt, gnm_cate_txt, interested_gnm_txt, p_value_cutoff, output_txt, PhyloBiAssoc_R):
+def perform_differential_presence_analysis(perform_stats, test_to_perform, tree_file_subset, pa_table_txt, gnm_to_cate_dict, interested_gnm_txt, p_value_cutoff, output_txt, PhyloBiAssoc_R, perform_multiple_test_correction):
 
     if test_to_perform == 'FisherExact':
-        p_value_dict = perform_fisher_exact_test(pa_table_txt, gnm_cate_txt, interested_gnm_txt)
+        p_value_dict = perform_fisher_exact_test(perform_stats, pa_table_txt, gnm_to_cate_dict, interested_gnm_txt)
     elif test_to_perform == 'BinaryPGLMM':
-        p_value_dict = perform_binaryPGLMM_test(tree_file_subset, pa_table_txt, gnm_cate_txt, interested_gnm_txt, PhyloBiAssoc_R)
+        p_value_dict = perform_binaryPGLMM_test(perform_stats, tree_file_subset, pa_table_txt, gnm_to_cate_dict, interested_gnm_txt, PhyloBiAssoc_R)
     else:
         print('Please specify either FisherExact or BinaryPGLMM, program exited!')
         exit()
@@ -213,30 +198,50 @@ def perform_differential_presence_analysis(test_to_perform, tree_file_subset, pa
     for each_item in p_value_dict:
         p_value = p_value_dict[each_item]
         p_value_adjusted = adjust_p_value_dict[p_value]
-        if p_value_adjusted <= p_value_cutoff:
-            op_txt_handle.write('%s\t%s\t%s\n' % (each_item, p_value, p_value_adjusted))
+
+        if perform_multiple_test_correction is False:
+            p_value_to_use = p_value
+        else:
+            p_value_to_use = p_value_adjusted
+
+        if p_value_to_use <= p_value_cutoff:
+            op_txt_handle.write('%s\t%s\n' % (each_item, p_value_to_use))
     op_txt_handle.close()
 
 
 ########################################################################################################################
 
-pwd_pathway_pa_txt      = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc/Pathway_PA.txt'
-gapseq_db_meta_pwy_tbl  = '/Users/songweizhi/DB/gapseq/meta_pwy.tbl'
-analysis_clades_txt     = '/Users/songweizhi/Desktop/Japonicum/Japo_analysis_clades.txt'
-tree_file               = '/Users/songweizhi/Desktop/Japonicum/Japonicum_121_OG_tree_LG.treefile'
-gnm_cate_txt            = '/Users/songweizhi/Desktop/Japonicum/genome_cate_by_nod.txt'
-pwy_cate_color_txt      = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc/pwy_cate_color.txt'
-p_value_cutoff          = 0.05
-add_pathway_name        = True
-gnm_to_ignore_list      = ['GCA_024171065.1']
-test_to_perform         = 'BinaryPGLMM' # FisherExact, BinaryPGLMM
-PhyloBiAssoc_R          = '/Users/songweizhi/PycharmProjects/BioSAK/BioSAK/PhyloBiAssoc.R'
+pwd_pathway_pa_txt                  = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc/Pathway_PA.txt'
+gapseq_db_meta_pwy_tbl              = '/Users/songweizhi/DB/gapseq/meta_pwy.tbl'
+analysis_clades_txt                 = '/Users/songweizhi/Desktop/Japonicum/Japo_analysis_clades.txt'
+tree_file                           = '/Users/songweizhi/Desktop/Japonicum/Japonicum_121_OG_tree_LG.treefile'
+gnm_cate_txt                        = '/Users/songweizhi/Desktop/Japonicum/genome_cate_by_nod.txt'
+pwy_cate_color_txt                  = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc/pwy_cate_color.txt'
+p_value_cutoff                      = 0.05
+add_pathway_name                    = True
+gnm_to_ignore_list                  = ['GCA_024171065.1']
+#gnm_to_ignore_list                  = []
+test_to_perform                     = 'BinaryPGLMM' # FisherExact, BinaryPGLMM
+PhyloBiAssoc_R                      = '/Users/songweizhi/PycharmProjects/BioSAK/BioSAK/PhyloBiAssoc.R'
+perform_PhyloBiAssoc_stats          = True
+perform_multiple_test_correction    = False
 
 # op dir
-op_dir                  = '/Users/songweizhi/Desktop/Japonicum/differential_presence_analysis_by_clade'
-pathway_color_txt       = '%s/pathway_color.txt' % op_dir
+op_dir                              = '/Users/songweizhi/Desktop/Japonicum/differential_presence_analysis_by_clade'
+pathway_color_txt                   = '%s/pathway_color.txt' % op_dir
 
 ########################################################################################################################
+
+# read in gnm_cate_txt
+gnm_cate_set = set()
+gnm_to_cate_dict = dict()
+for each_gnm in open(gnm_cate_txt):
+    each_gnm_split = each_gnm.strip().split('\t')
+    gnm_id = each_gnm_split[0]
+    gnm_cate = each_gnm_split[1]
+    if gnm_id not in gnm_to_ignore_list:
+        gnm_cate_set.add(gnm_cate)
+        gnm_to_cate_dict[gnm_id] = gnm_cate
 
 # read in analysis_clades_txt
 analysis_clade_to_gnm_dict = dict()
@@ -246,7 +251,8 @@ for each_japo in open(analysis_clades_txt):
     ac_id = each_japo_split[1]
     if ac_id not in analysis_clade_to_gnm_dict:
         analysis_clade_to_gnm_dict[ac_id] = set()
-    analysis_clade_to_gnm_dict[ac_id].add(gnm_id)
+    if gnm_id not in gnm_to_ignore_list:
+        analysis_clade_to_gnm_dict[ac_id].add(gnm_id)
 
 # read in gapseq's meta_pwy.tbl
 meta_pwy_id2name_dict = dict()
@@ -287,7 +293,7 @@ for analysis_clade in analysis_clade_to_gnm_dict:
     pwd_pathway_pa_txt_diff_0as1_itol = '%s/%s_pathway_PA_diff_with_name_iTOL.txt'  % (op_dir, analysis_clade)
 
     # perform_differential_presence_analysis
-    perform_differential_presence_analysis(test_to_perform, tree_file_subset, pwd_pathway_pa_txt, gnm_cate_txt, interested_gnm_txt, p_value_cutoff, pwd_analysis_result_txt, PhyloBiAssoc_R)
+    perform_differential_presence_analysis(perform_PhyloBiAssoc_stats, test_to_perform, tree_file_subset, pwd_pathway_pa_txt, gnm_to_cate_dict, interested_gnm_txt, p_value_cutoff, pwd_analysis_result_txt, PhyloBiAssoc_R, perform_multiple_test_correction)
 
     # get pathways with differential presence
     diff_pwy_id_set = set()
