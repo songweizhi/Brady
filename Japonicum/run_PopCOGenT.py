@@ -34,8 +34,9 @@ import os
 
 '''
 cd /home-user/wzsong/Japonicum/PopCOGenT
-BioSAK iTOL -ColorStrip -lg PopCOGenT_MCs.txt -lt PopCOGenT_MC -o PopCOGenT_MCs_iTOL_Strip.txt
-BioSAK iTOL -ColorRange -lg PopCOGenT_MCs.txt -lt PopCOGenT_MC -o PopCOGenT_MCs_iTOL_Range.txt
+BioSAK iTOL -ColorStrip -lg PopCOGenT_MCs.txt -gc PopCOGenT_MC_color.txt -lt PopCOGenT_MC -o PopCOGenT_MCs_iTOL_Strip.txt
+BioSAK iTOL -ColorRange -lg PopCOGenT_MCs.txt -gc PopCOGenT_MC_color.txt -lt PopCOGenT_MC -o PopCOGenT_MCs_iTOL_Range.txt
+
 '''
 #
 # PopC_txt    = '/Users/songweizhi/Desktop/PopC.txt'

@@ -211,22 +211,19 @@ def perform_differential_presence_analysis(perform_stats, test_to_perform, tree_
 
 ########################################################################################################################
 
-pwd_pathway_pa_txt                  = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc/Pathway_PA.txt'
-gapseq_db_meta_pwy_tbl              = '/Users/songweizhi/DB/gapseq/meta_pwy.tbl'
+pwd_transporter_pa_txt              = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc_transporter/transport_PA.txt'
 analysis_clades_txt                 = '/Users/songweizhi/Desktop/Japonicum/Japo_analysis_clades.txt'
 tree_file                           = '/Users/songweizhi/Desktop/Japonicum/Japonicum_121_OG_tree_LG.treefile'
 gnm_cate_txt                        = '/Users/songweizhi/Desktop/Japonicum/genome_cate_by_nod.txt'
-pwy_cate_color_txt                  = '/Users/songweizhi/Desktop/Japonicum/gapseq_metacyc/pwy_cate_color.txt'
 p_value_cutoff                      = 0.05
-add_pathway_name                    = True
-gnm_to_ignore_list                  = ['GCA_024171065.1']
 test_to_perform                     = 'BinaryPGLMM' # FisherExact, BinaryPGLMM
 PhyloBiAssoc_R                      = '/Users/songweizhi/PycharmProjects/BioSAK/BioSAK/PhyloBiAssoc.R'
-perform_PhyloBiAssoc_stats          = False
-perform_multiple_test_correction    = False
+perform_PhyloBiAssoc_stats          = True
+perform_multiple_test_correction    = True
+gnm_to_ignore_list                  = []
 
 # op dir
-op_dir                              = '/Users/songweizhi/Desktop/Japonicum/differential_presence_analysis_by_clade'
+op_dir                              = '/Users/songweizhi/Desktop/Japonicum/differential_presence_analysis_by_clade_transporter'
 pathway_color_txt                   = '%s/pathway_color.txt' % op_dir
 
 ########################################################################################################################
@@ -253,22 +250,6 @@ for each_japo in open(analysis_clades_txt):
     if gnm_id not in gnm_to_ignore_list:
         analysis_clade_to_gnm_dict[ac_id].add(gnm_id)
 
-# read in gapseq's meta_pwy.tbl
-meta_pwy_id2name_dict = dict()
-for each_pwy in open(gapseq_db_meta_pwy_tbl):
-    if not each_pwy.startswith('id\t'):
-        each_pwy_split = each_pwy.strip().split('\t')
-        pwy_id = each_pwy_split[0]
-        pwy_name = each_pwy_split[1]
-        meta_pwy_id2name_dict[pwy_id.replace('|', '')] = pwy_name.replace(' ', '_').replace(',', '_')
-
-# read in color
-pwy_cate_color_dict = dict()
-if os.path.isfile(pwy_cate_color_txt) is True:
-    for each_pwy_cate in open(pwy_cate_color_txt):
-        each_pwy_cate_split = each_pwy_cate.strip().split('\t')
-        pwy_cate_color_dict[each_pwy_cate_split[0]] = each_pwy_cate_split[1]
-
 for analysis_clade in analysis_clade_to_gnm_dict:
 
     print('Processing %s' % analysis_clade)
@@ -284,15 +265,14 @@ for analysis_clade in analysis_clade_to_gnm_dict:
     # subset genome tree
     subset_tree(tree_file, ac_gnm_set, tree_file_subset)
 
-    pwd_analysis_result_txt           = '%s/%s_pathway_PA_analysis_result.txt'      % (op_dir, analysis_clade)
-    pwd_pathway_pa_txt_diff           = '%s/%s_pathway_PA_diff.txt'                 % (op_dir, analysis_clade)
-    pwd_pathway_pa_txt_diff_with_name = '%s/%s_pathway_PA_diff_with_name.txt'       % (op_dir, analysis_clade)
-    pwd_pathway_pa_txt_diff_0as1      = '%s/%s_pathway_PA_diff_with_name_0as1.txt'  % (op_dir, analysis_clade)
-    pwd_pathway_color_txt             = '%s/%s_pathway_color.txt'                   % (op_dir, analysis_clade)
-    pwd_pathway_pa_txt_diff_0as1_itol = '%s/%s_pathway_PA_diff_with_name_iTOL.txt'  % (op_dir, analysis_clade)
+    pwd_analysis_result_txt           = '%s/%s_transporter_PA_analysis_result.txt'  % (op_dir, analysis_clade)
+    pwd_pathway_pa_txt_diff           = '%s/%s_transporter_PA_diff.txt'             % (op_dir, analysis_clade)
+    pwd_pathway_pa_txt_diff_0as1      = '%s/%s_transporter_PA_diff_0as1.txt'        % (op_dir, analysis_clade)
+    pwd_pathway_pa_txt_diff_0as1_itol = '%s/%s_transporter_PA_diff_iTOL.txt'        % (op_dir, analysis_clade)
+    pwd_pathway_color_txt             = '%s/%s_transporter_color.txt'               % (op_dir, analysis_clade)
 
     # perform_differential_presence_analysis
-    perform_differential_presence_analysis(perform_PhyloBiAssoc_stats, test_to_perform, tree_file_subset, pwd_pathway_pa_txt, gnm_to_cate_dict, interested_gnm_txt, p_value_cutoff, pwd_analysis_result_txt, PhyloBiAssoc_R, perform_multiple_test_correction)
+    perform_differential_presence_analysis(perform_PhyloBiAssoc_stats, test_to_perform, tree_file_subset, pwd_transporter_pa_txt, gnm_to_cate_dict, interested_gnm_txt, p_value_cutoff, pwd_analysis_result_txt, PhyloBiAssoc_R, perform_multiple_test_correction)
 
     # get pathways with differential presence
     diff_pwy_id_set = set()
@@ -313,43 +293,22 @@ for analysis_clade in analysis_clade_to_gnm_dict:
     if len(diff_pwy_id_set) > 0:
 
         # Subset PA df by selected columns
-        subset_df(pwd_pathway_pa_txt, interested_gnm_list_sorted, diff_pwy_id_list_sorted, '\t', 0, 0, pwd_pathway_pa_txt_diff)
+        subset_df(pwd_transporter_pa_txt, interested_gnm_list_sorted, diff_pwy_id_list_sorted, '\t', 0, 0, pwd_pathway_pa_txt_diff)
 
         ####################################################################################################################
 
-        # add name to pathway id
-        if add_pathway_name is True:
-            pwd_pathway_pa_txt_diff_with_name_handle = open(pwd_pathway_pa_txt_diff_with_name, 'w')
-            for each_line in open(pwd_pathway_pa_txt_diff):
-                each_line_split = each_line.strip().split('\t')
-                if each_line.startswith('\t'):
-                    header_list_with_name = ['']
-                    for each_pwy in each_line_split:
-                        pwy_id_no_cate = each_pwy.split('__')[1]
-                        pwy_name = meta_pwy_id2name_dict.get(pwy_id_no_cate, '')
-                        if pwy_name == '':
-                            pwy_with_name = each_pwy
-                        else:
-                            pwy_with_name = '%s__%s' % (each_pwy, pwy_name)
-                        header_list_with_name.append(pwy_with_name)
-                    pwd_pathway_pa_txt_diff_with_name_handle.write('%s\n' % '\t'.join(header_list_with_name))
-                else:
-                    pwd_pathway_pa_txt_diff_with_name_handle.write(each_line)
-            pwd_pathway_pa_txt_diff_with_name_handle.close()
-
         # write out pathway_color_txt
-        all_pwy_list = open(pwd_pathway_pa_txt_diff_with_name).readline().strip().split('\t')
+        all_pwy_list = open(pwd_pathway_pa_txt_diff).readline().strip().split('\t')
         pwd_pathway_color_txt_handle = open(pwd_pathway_color_txt, 'w')
         for each_pwy in all_pwy_list:
             if '__' in each_pwy:
                 pwy_cate = each_pwy.split('__')[0]
-                pwy_cate_color = pwy_cate_color_dict[pwy_cate]
-                pwd_pathway_color_txt_handle.write('%s\t%s\n' % (each_pwy, pwy_cate_color))
+                pwd_pathway_color_txt_handle.write('%s\t%s\n' % (each_pwy, 'lightgreen'))
         pwd_pathway_color_txt_handle.close()
 
         # turn 0 to -1
         pwd_pathway_pa_txt_diff_0as1_handle = open(pwd_pathway_pa_txt_diff_0as1, 'w')
-        for each_line in open(pwd_pathway_pa_txt_diff_with_name):
+        for each_line in open(pwd_pathway_pa_txt_diff):
             pwd_pathway_pa_txt_diff_0as1_handle.write(each_line.replace('\t0', '\t-1'))
         pwd_pathway_pa_txt_diff_0as1_handle.close()
 
@@ -357,8 +316,3 @@ for analysis_clade in analysis_clade_to_gnm_dict:
         itol_cmd = 'BioSAK iTOL -Binary -lm %s -lt Pathway -cc %s -o %s' % (pwd_pathway_pa_txt_diff_0as1, pwd_pathway_color_txt, pwd_pathway_pa_txt_diff_0as1_itol)
         print(itol_cmd)
         os.system(itol_cmd)
-
-        # remove tmp files
-        # os.system('rm %s' % pwd_pathway_color_txt)
-        # os.system('rm %s' % pwd_pathway_pa_txt_diff)
-        # os.system('rm %s' % pwd_pathway_pa_txt_diff_0as1)
